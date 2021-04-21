@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace MyLibrary.Algorithms.Methods.Simplex
@@ -8,17 +9,20 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 	{
 		public int GetLeadingColumn(SimplexTable table)
 		{
-			int leadingColumn = 0;
-			double minValue = table.GoalFunctionCoefficients[0];
+			int leadingColumn = -1;
+			double minValue = 1;
 			double currentValue;
-			for (int i = 0; i < table.GoalFunctionCoefficients.Length; i++)
+			for (int i = 0; i < table.CountOfVariables; i++)
 			{
-				currentValue = table.GoalFunctionCoefficients[i];
-				if (currentValue < minValue)
+				if (!table.BasisVariables.Contains(i))
 				{
-					minValue = currentValue;
-					leadingColumn = i;
-				}
+					currentValue = table.GoalFunctionCoefficients[i];
+					if (currentValue < minValue)
+					{
+						minValue = currentValue;
+						leadingColumn = i;
+					}
+				}	
 			}
 			return leadingColumn;
 		}
@@ -47,10 +51,13 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 
 		public bool IsOptimal(SimplexTable table)
 		{
-			foreach (var coefficient in table.GoalFunctionCoefficients)
+			for (int i = 0; i < table.CountOfVariables; i++)
 			{
-				if (coefficient < 0)
-					return false;
+				if (!table.BasisVariables.Contains(i))
+				{
+					if (table.GoalFunctionCoefficients[i] <= 0)
+						return false;
+				}
 			}
 			return true;
 		}
