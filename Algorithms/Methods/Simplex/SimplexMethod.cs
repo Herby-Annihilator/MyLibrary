@@ -98,6 +98,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 						{
 							basis.RemoveAt(i);
 							i--;
+							break;
 						}
 					}
 				}
