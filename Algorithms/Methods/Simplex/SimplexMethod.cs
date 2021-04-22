@@ -40,7 +40,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					_table.Matrix[leadingRow][leadingColumn];
 			}
 			_table.FreeMemebers[leadingColumn] = _table.FreeMemebers[leadingRow] / _table.Matrix[leadingRow][leadingColumn];
-			_table.BasisVariables[_table.BasisVariables.IndexOf(leadingRow,
+			_table.BasisVariablesIndexes[_table.BasisVariablesIndexes.IndexOf(leadingRow,
 				(first, second) =>
 				{
 					if (first > second) return 1;
@@ -54,9 +54,9 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			// новая строка = текущая строка - ее коэф. в ведущем столбце * новая ведущая строка
 			int currentBasisVariable;
 			double leadingElement;
-			for (int i = 0; i < _table.BasisVariables.Length; i++)
+			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
 			{
-				currentBasisVariable = _table.BasisVariables[i];
+				currentBasisVariable = _table.BasisVariablesIndexes[i];
 				if (currentBasisVariable != _table.CurrentLeadingRow)
 				{
 					leadingElement = _table.Matrix[currentBasisVariable][leadingColumn];
@@ -83,9 +83,26 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 
 		public static SimplexTable PrepareFirstSimplexTable(List<Inequality> inequalities, TargetFunction targetFunction)
 		{
-			AddResidualAndAdditionalVariablesTo(inequalities, targetFunction);
-			targetFunction.Coefficients.Map((element) => element *= -1);
-			int[] basis = GetBasisIndexes(inequalities);
+			int countOfAddedVariables = AddResidualAndAdditionalVariablesTo(inequalities, targetFunction);
+			List<int> basis = GetBasisIndexes(inequalities, countOfAddedVariables);
+			int[] fakeVariablesIndexes = new int[0];
+			if (countOfAddedVariables < inequalities.Count)
+			{
+				fakeVariablesIndexes = AddFakeVariables(inequalities, targetFunction);
+				basis.AddRange(fakeVariablesIndexes);
+				for (int i = 0; i < basis.Count; i++)
+				{
+					for (int j = 0; j < inequalities.Count; j++)
+					{
+						if (inequalities[j].Coefficients[basis[i]] < 0)
+						{
+							basis.RemoveAt(i);
+							i--;
+						}
+					}
+				}
+			}
+			targetFunction.Coefficients.Map((element) => element *= -1);			
 			int matrixSize = targetFunction.Coefficients.Count;
 			int currentInequalityToAddAsBasis = 0;
 			double[][] matrix = new double[matrixSize][];
@@ -103,45 +120,62 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					matrix[i] = new double[matrixSize];
 				}
 			}
-			SimplexTable table = new SimplexTable(matrix, freeMembers, basis, targetFunction.Coefficients.ToArray());
+			SimplexTable table = new SimplexTable(matrix, freeMembers, basis.ToArray(), targetFunction.Coefficients.ToArray(), fakeVariablesIndexes);
 			return table;
 		}
-		private static void AddResidualAndAdditionalVariablesTo(List<Inequality> inequalities, TargetFunction targetFunction)
+		private static int AddResidualAndAdditionalVariablesTo(List<Inequality> inequalities, TargetFunction targetFunction)
 		{
+			int countOfAddedVariables = 0;
 			int countOfVariablesToAdd = inequalities.Count;
 			for (int i = 0; i < countOfVariablesToAdd; i++)
 			{
-				for (int j = 0; j < countOfVariablesToAdd; j++)
+				if (inequalities[i].Sign != Sign.EqualSign)
 				{
-					if (i == j)
+					countOfAddedVariables++;
+					if (inequalities[i].Sign == Sign.LessThanOrEqualSign)
 					{
-						if (inequalities[i].Sign == Sign.MoreThanOrEqualSign)
-						{
-							inequalities[i].Coefficients.Add(-1);
-						}
-						else if (inequalities[i].Sign == Sign.LessThanOrEqualSign)
-						{
-							inequalities[i].Coefficients.Add(1);
-						}
-						else
-						{
-							inequalities[i].Coefficients.Add(0);
-						}
+						inequalities[i].Coefficients.Add(1);
 					}
 					else
 					{
-						inequalities[i].Coefficients.Add(0);
+						inequalities[i].Coefficients.Add(-1);
 					}
-				}
-				targetFunction.Coefficients.Add(0);
+					for (int j = 0; j < countOfVariablesToAdd; j++)
+					{
+						if (i != j)
+							inequalities[j].Coefficients.Add(0);
+					}
+					targetFunction.Coefficients.Add(0);
+				}				
 			}
+			return countOfAddedVariables;
 		}
-		private static int[] GetBasisIndexes(List<Inequality> inequalities)
+		
+		private static int[] AddFakeVariables(List<Inequality> inequalities, TargetFunction targetFunction)
 		{
-			int[] basisIndexes = new int[inequalities.Count];
-			for (int i = 0; i < basisIndexes.Length; i++)
+			List<int> fakeVariablesIndexes = new List<int>();
+			for (int i = 0; i < inequalities.Count; i++)
 			{
-				basisIndexes[i] = inequalities[i].Coefficients.Count - inequalities.Count + i;
+				if (inequalities[i].Sign != Sign.LessThanOrEqualSign)
+				{
+					fakeVariablesIndexes.Add(inequalities[i].Coefficients.Count);
+					inequalities[i].Coefficients.Add(1);
+					for (int j = 0; j < inequalities.Count; j++)
+					{
+						if (i != j)
+							inequalities[i].Coefficients.Add(0);
+					}
+					targetFunction.Coefficients.Add(0);
+				}
+			}
+			return fakeVariablesIndexes.ToArray();
+		}
+		private static List<int> GetBasisIndexes(List<Inequality> inequalities, int countOfAddedVariables)
+		{
+			List<int> basisIndexes = new List<int>();
+			for (int i = inequalities[0].Coefficients.Count - countOfAddedVariables; i < inequalities[0].Coefficients.Count; i++)
+			{
+				basisIndexes.Add(i);
 			}
 			return basisIndexes;
 		}

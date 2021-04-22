@@ -13,14 +13,14 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		{
 			Status = status;
 			Solution solution = new Solution();
-			solution.BasisIndexes = (int[])finalTable.BasisVariables.Clone();
+			solution.BasisIndexes = (int[])finalTable.BasisVariablesIndexes.Clone();
 			solution.OptimalValue = finalTable.GoalFunctionValue;
 			double[] optimalCoefficients = new double[finalTable.CountOfVariables];
 			List<double> optimalBasis = new List<double>();
 			List<int> freeIndexes = new List<int>();
 			for (int i = 0; i < finalTable.CountOfVariables; i++)
 			{
-				if (finalTable.BasisVariables.Contains(i))
+				if (finalTable.BasisVariablesIndexes.Contains(i))
 				{
 					optimalCoefficients[i] = finalTable.FreeMemebers[i];
 				}

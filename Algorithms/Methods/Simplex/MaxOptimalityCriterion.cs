@@ -14,7 +14,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			double currentValue;
 			for (int i = 0; i < table.CountOfVariables; i++)
 			{
-				if (!table.BasisVariables.Contains(i))
+				if (!table.BasisVariablesIndexes.Contains(i))
 				{
 					currentValue = table.GoalFunctionCoefficients[i];
 					if (currentValue < minValue)
@@ -33,9 +33,9 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			int leadingRow = -1;
 			minRatio = double.MaxValue;
 			int currentBasisIndex;
-			for (int i = 0; i < table.BasisVariables.Length; i++)
+			for (int i = 0; i < table.BasisVariablesIndexes.Length; i++)
 			{
-				currentBasisIndex = table.BasisVariables[i];
+				currentBasisIndex = table.BasisVariablesIndexes[i];
 				currentRatio = table.FreeMemebers[currentBasisIndex] / table.Matrix[currentBasisIndex][leadingColumn];
 				if (currentRatio >= 0 && !double.IsNaN(currentRatio) && !double.IsInfinity(currentRatio))
 				{
@@ -53,7 +53,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		{
 			for (int i = 0; i < table.CountOfVariables; i++)
 			{
-				if (!table.BasisVariables.Contains(i))
+				if (!table.BasisVariablesIndexes.Contains(i))
 				{
 					if (table.GoalFunctionCoefficients[i] <= 0)
 						return false;
