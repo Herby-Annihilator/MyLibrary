@@ -114,6 +114,41 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			return answer;
 		}
 
+		private void AddCommonSolutionIfNecessary(SimplexAnswer answer)
+		{
+			double[,] pairs = new double[_table.BasisVariablesIndexes.Length, 2];
+			for (int i = 0; i < _table.CountOfVariables; i++)
+			{
+				if (!_table.BasisVariablesIndexes.Contains(i))
+				{
+					if (_table.GoalFunctionCoefficients[i] == 0)
+					{
+						answer.Status = AnswerStatus.SeveralSolutions;
+						for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
+						{
+							if (_table.BasisVariablesIndexes.Contains(j))
+								pairs[j, 0] = _table.FreeMemebers[j];
+							else
+								pairs[j, 0] = _table.GoalFunctionCoefficients[j];
+						}
+						int leadingColumn = _optimalityCriterion.GetLeadingColumn(_table);
+						int leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
+						UpdateSimplexTable(leadingColumn, leadingRow);
+
+						for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
+						{
+							if (_table.BasisVariablesIndexes.Contains(j))
+								pairs[j, 1] = _table.FreeMemebers[j];
+							else
+								pairs[j, 1] = _table.GoalFunctionCoefficients[j];
+						}
+
+						break;
+					}
+				}
+			}
+		}
+
 		private void UpdateSimplexTable(int leadingColumn, int leadingRow)
 		{
 			CalculateNewLeadingRow(leadingRow, leadingColumn);
