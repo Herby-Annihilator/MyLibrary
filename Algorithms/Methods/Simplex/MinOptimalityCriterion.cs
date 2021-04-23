@@ -55,7 +55,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			{
 				if (!table.BasisVariablesIndexes.Contains(i))
 				{
-					if (table.GoalFunctionCoefficients[i] >= 0)
+					if (table.GoalFunctionCoefficients[i] > 0)
 						return false;
 				}
 			}

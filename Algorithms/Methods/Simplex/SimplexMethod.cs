@@ -16,6 +16,93 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 
 		public SimplexAnswer Solve()
 		{
+			FirstStep();
+			return SecondStep();
+		}
+
+		private void FirstStep()
+		{
+			if (_table.FakeVariablesIndexes.Length > 0)
+			{
+				double[] oldTargetFunctionCoefficients = (double[])_table.GoalFunctionCoefficients.Clone();
+				NormalizeFakeTargetFunction();
+				MinOptimalityCriterion minOptimalityCriterion = new MinOptimalityCriterion();
+				int leadingColumn, leadingRow;
+				do
+				{
+					leadingColumn = minOptimalityCriterion.GetLeadingColumn(_table);
+					leadingRow = minOptimalityCriterion.GetLeadingRow(leadingColumn, _table);
+					UpdateSimplexTable(leadingColumn, leadingRow);
+				} while (!minOptimalityCriterion.IsOptimal(_table));
+				CheckFakeSolution();
+				PrepareTableForSecondStep(oldTargetFunctionCoefficients);
+			}
+		}
+		private void NormalizeFakeTargetFunction()
+		{
+			for (int i = 0; i < _table.GoalFunctionCoefficients.Length; i++)
+			{
+				if (!_table.FakeVariablesIndexes.Contains(i))
+				{
+					_table.GoalFunctionCoefficients[i] = 0;
+				}
+			}
+			int currentFakeIndex;
+			for (int i = 0; i < _table.FakeVariablesIndexes.Length; i++)
+			{
+				currentFakeIndex = _table.FakeVariablesIndexes[i];
+				for (int j = 0; j < _table.GoalFunctionCoefficients.Length; j++)
+				{
+					_table.GoalFunctionCoefficients[j] += _table.Matrix[currentFakeIndex][j] * _table.Matrix[currentFakeIndex][currentFakeIndex];
+				}
+				_table.GoalFunctionValue += _table.FreeMemebers[currentFakeIndex] * _table.Matrix[currentFakeIndex][currentFakeIndex];
+			}
+		}
+
+		private void CheckFakeSolution()
+		{
+			if (_table.GoalFunctionValue != 0)
+				throw new Exception("Получить допустимое базисное решение не удалось. Дальнейшие вычисления прекращены.");
+			for (int i = 0; i < _table.FakeVariablesIndexes.Length; i++)
+			{
+				if (_table.BasisVariablesIndexes.Contains(_table.FakeVariablesIndexes[i]))
+					throw new Exception("Ложная переменная оказалась в базисе. Такое теоретически возможно. Однако, дальнейшие вычисления прекращены");
+				else if (_table.GoalFunctionCoefficients[_table.FakeVariablesIndexes[i]] > 0)
+					throw new Exception("На конечной итерации одна или несколько ложных переменных приняли положительное значение. Дальнейшие вычисления прекращены т.к задача не имеет допустимого решения.");
+			}
+		}
+
+		private void PrepareTableForSecondStep(double[] oldTargetFunctionCoefficients)
+		{
+			int matrixSize = _table.Matrix.GetLength(0) - _table.FakeVariablesIndexes.Length;
+			double[][] matrix = new double[matrixSize][];
+			double[] freeMembers = new double[matrixSize];
+			double[] targetFunctionCoefficients = new double[matrixSize];
+			//
+			// Поскольку ложные переменные добавлялись в таблицу последними, то они находятся в ее 
+			// конце (как по строкам, так и по столбцам), поэтому их можно просто отсечь.
+			// Изменять индексы базисных переменных тоже не потребуется, поэтому можно исползовать 
+			// старый базис
+			//
+			for (int i = 0; i < matrixSize; i++)
+			{
+				matrix[i] = new double[matrixSize];
+				freeMembers[i] = _table.FreeMemebers[i];
+				targetFunctionCoefficients[i] = oldTargetFunctionCoefficients[i];
+				for (int j = 0; j < matrixSize; j++)
+				{
+					matrix[i][j] = _table.Matrix[i][j];
+				}
+			}
+			_table.Matrix = matrix;
+			_table.FreeMemebers = freeMembers;
+			_table.GoalFunctionCoefficients = targetFunctionCoefficients;
+			_table.GoalFunctionValue = 0;
+			_table.CountOfVariables = matrixSize;
+			_table.FakeVariablesIndexes = new int[0];
+		}
+		private SimplexAnswer SecondStep()
+		{
 			int leadingColumn, leadingRow;
 			do
 			{
