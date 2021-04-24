@@ -109,14 +109,22 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				leadingColumn = _optimalityCriterion.GetLeadingColumn(_table);
 				leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
 				UpdateSimplexTable(leadingColumn, leadingRow);
+				if (_optimalityCriterion.IsTargetFunctionUnlimited(_table))
+				{
+					return new SimplexAnswer()
+					{
+						Status = AnswerStatus.TargetFunctionUnlimited
+					};
+				}
 			} while (!_optimalityCriterion.IsOptimal(_table));
 			SimplexAnswer answer = new SimplexAnswer(_table, AnswerStatus.OneSolution);
+			AddCommonSolutionIfNecessary(answer);
 			return answer;
 		}
 
 		private void AddCommonSolutionIfNecessary(SimplexAnswer answer)
 		{
-			double[,] pairs = new double[_table.BasisVariablesIndexes.Length, 2];
+			double[][] pairs = new double[_table.BasisVariablesIndexes.Length][];
 			for (int i = 0; i < _table.CountOfVariables; i++)
 			{
 				if (!_table.BasisVariablesIndexes.Contains(i))
@@ -126,10 +134,11 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 						answer.Status = AnswerStatus.SeveralSolutions;
 						for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
 						{
+							pairs[j] = new double[2];
 							if (_table.BasisVariablesIndexes.Contains(j))
-								pairs[j, 0] = _table.FreeMemebers[j];
+								pairs[j][0] = _table.FreeMemebers[j];
 							else
-								pairs[j, 0] = _table.GoalFunctionCoefficients[j];
+								pairs[j][0] = _table.GoalFunctionCoefficients[j];
 						}
 						int leadingColumn = _optimalityCriterion.GetLeadingColumn(_table);
 						int leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
@@ -138,11 +147,31 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 						for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
 						{
 							if (_table.BasisVariablesIndexes.Contains(j))
-								pairs[j, 1] = _table.FreeMemebers[j];
+								pairs[j][1] = _table.FreeMemebers[j];
 							else
-								pairs[j, 1] = _table.GoalFunctionCoefficients[j];
+								pairs[j][1] = _table.GoalFunctionCoefficients[j];
+							answer.CommonVariableValues.Add(new CommonVariableValue(pairs[j][0], pairs[j][1], $"X{j + 1}"));
 						}
-
+						Solution alternativeSolution = new Solution();
+						alternativeSolution.BasisIndexes = (int[])_table.BasisVariablesIndexes.Clone();
+						alternativeSolution.OptimalValue = _table.GoalFunctionValue;
+						double[] optimalCoefficients = new double[_table.CountOfVariables];
+						List<int> freeIndexes = new List<int>();
+						for (int j = 0; j < _table.CountOfVariables; j++)
+						{
+							if (_table.BasisVariablesIndexes.Contains(j))
+							{
+								optimalCoefficients[j] = _table.FreeMemebers[j];
+							}
+							else
+							{
+								freeIndexes.Add(j);
+								optimalCoefficients[j] = _table.GoalFunctionCoefficients[j];
+							}
+						}
+						alternativeSolution.FreeIndexes = freeIndexes.ToArray();
+						alternativeSolution.OptimalCoefficients = optimalCoefficients;
+						answer.Solutions.Add(alternativeSolution);
 						break;
 					}
 				}

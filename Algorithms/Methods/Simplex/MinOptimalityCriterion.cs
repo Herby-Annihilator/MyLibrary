@@ -61,6 +61,26 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			}
 			return true;
 		}
+
+		public bool IsTargetFunctionUnlimited(SimplexTable simplexTable)
+		{
+			for (int i = 0; i < simplexTable.CountOfVariables; i++)
+			{
+				if (!simplexTable.BasisVariablesIndexes.Contains(i))
+				{
+					if (simplexTable.GoalFunctionCoefficients[i] > 0)
+					{
+						for (int j = 0; j < simplexTable.BasisVariablesIndexes.Length; j++)
+						{
+							if (simplexTable.Matrix[simplexTable.BasisVariablesIndexes[j]][i] > 0)
+								return false;
+						}
+					}
+				}
+			}
+			return true;
+		}
+
 		public override string ToString() => "Min";
 	}
 }

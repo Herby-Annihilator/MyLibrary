@@ -9,5 +9,6 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		int GetLeadingColumn(SimplexTable table);
 		int GetLeadingRow(int leadingColumn, SimplexTable table);
 		bool IsOptimal(SimplexTable table);
+		bool IsTargetFunctionUnlimited(SimplexTable simplexTable);
 	}
 }

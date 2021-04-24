@@ -7,8 +7,9 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 {
 	public class SimplexAnswer
 	{
-		public AnswerStatus Status { get; set; }
+		public AnswerStatus Status { get; set; } = AnswerStatus.NoSolutions;
 		public List<Solution> Solutions { get; set; } = new List<Solution>();
+		public List<CommonVariableValue> CommonVariableValues { get; private set; } = new List<CommonVariableValue>();
 		public SimplexAnswer(SimplexTable finalTable, AnswerStatus status = AnswerStatus.NoSolutions)
 		{
 			Status = status;
@@ -16,7 +17,6 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			solution.BasisIndexes = (int[])finalTable.BasisVariablesIndexes.Clone();
 			solution.OptimalValue = finalTable.GoalFunctionValue;
 			double[] optimalCoefficients = new double[finalTable.CountOfVariables];
-			List<double> optimalBasis = new List<double>();
 			List<int> freeIndexes = new List<int>();
 			for (int i = 0; i < finalTable.CountOfVariables; i++)
 			{
@@ -34,13 +34,18 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			solution.OptimalCoefficients = optimalCoefficients;
 			Solutions.Add(solution);
 		}
+		public SimplexAnswer()
+		{
+
+		}
 	}
 
 	public enum AnswerStatus
 	{
 		NoSolutions,
 		OneSolution,
-		SeveralSolutions
+		SeveralSolutions,
+		TargetFunctionUnlimited
 	}
 
 	public class Solution
@@ -49,5 +54,30 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		public double[] OptimalCoefficients { get; set; }
 		public int[] BasisIndexes { get; set; }
 		public int[] FreeIndexes { get; set; }
+	}
+
+	public class CommonVariableValue
+	{
+		public string Name { get; private set; }
+		private double _firstValue;
+		private double _secondValue;
+		public CommonVariableValue(double firstValue, double secondValue, string name)
+		{
+			Name = name;
+			_firstValue = firstValue;
+			_secondValue = secondValue;
+		}
+		public override string ToString()
+		{
+			double coefficient = _firstValue - _secondValue;
+			return $"{_secondValue} {Math.Round(coefficient, 5)}α";
+		}
+		private string SignToString(double value)
+		{
+			if (value < 0)
+				return "-";
+			else
+				return "+";
+		}
 	}
 }
