@@ -64,21 +64,28 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 
 		public bool IsTargetFunctionUnlimited(SimplexTable simplexTable)
 		{
+			bool allRestrictionsAreNotPositive;
 			for (int i = 0; i < simplexTable.CountOfVariables; i++)
 			{
 				if (!simplexTable.BasisVariablesIndexes.Contains(i))
 				{
 					if (simplexTable.GoalFunctionCoefficients[i] > 0)
 					{
+						allRestrictionsAreNotPositive = true;
 						for (int j = 0; j < simplexTable.BasisVariablesIndexes.Length; j++)
 						{
 							if (simplexTable.Matrix[simplexTable.BasisVariablesIndexes[j]][i] > 0)
-								return false;
+							{
+								allRestrictionsAreNotPositive = false;
+								break;
+							}
 						}
+						if (allRestrictionsAreNotPositive)
+							return true;
 					}
 				}
 			}
-			return true;
+			return false;
 		}
 
 		public override string ToString() => "Min";
