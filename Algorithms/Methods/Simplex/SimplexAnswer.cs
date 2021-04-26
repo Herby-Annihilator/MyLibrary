@@ -59,6 +59,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 	public class CommonVariableValue
 	{
 		public string Name { get; private set; }
+		public string Value { get => ToString(); }
 		private double _firstValue;
 		private double _secondValue;
 		public CommonVariableValue(double firstValue, double secondValue, string name)
@@ -70,7 +71,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		public override string ToString()
 		{
 			double coefficient = _firstValue - _secondValue;
-			return $"{_secondValue} {Math.Round(coefficient, 5)}α";
+			return $"{_secondValue} {SignToString(coefficient)} {Math.Round(Math.Abs(coefficient), 5)}α";
 		}
 		private string SignToString(double value)
 		{

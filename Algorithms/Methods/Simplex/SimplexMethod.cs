@@ -124,7 +124,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 
 		private void AddCommonSolutionIfNecessary(SimplexAnswer answer)
 		{
-			double[][] pairs = new double[_table.BasisVariablesIndexes.Length][];
+			double[][] pairs = new double[_table.CountOfVariables - _table.BasisVariablesIndexes.Length][]; // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
 			for (int i = 0; i < _table.CountOfVariables; i++)
 			{
 				if (!_table.BasisVariablesIndexes.Contains(i))
@@ -132,7 +132,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					if (_table.GoalFunctionCoefficients[i] == 0)
 					{
 						answer.Status = AnswerStatus.SeveralSolutions;
-						for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
+						for (int j = 0; j < _table.CountOfVariables - _table.BasisVariablesIndexes.Length; j++)  // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
 						{
 							pairs[j] = new double[2];
 							if (_table.BasisVariablesIndexes.Contains(j))
@@ -144,7 +144,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 						int leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
 						UpdateSimplexTable(leadingColumn, leadingRow);
 
-						for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
+						for (int j = 0; j < _table.CountOfVariables -  _table.BasisVariablesIndexes.Length; j++)  // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
 						{
 							if (_table.BasisVariablesIndexes.Contains(j))
 								pairs[j][1] = _table.FreeMemebers[j];
@@ -157,7 +157,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 						alternativeSolution.OptimalValue = _table.GoalFunctionValue;
 						double[] optimalCoefficients = new double[_table.CountOfVariables];
 						List<int> freeIndexes = new List<int>();
-						for (int j = 0; j < _table.CountOfVariables; j++)
+						for (int j = 0; j < _table.CountOfVariables; j++) 
 						{
 							if (_table.BasisVariablesIndexes.Contains(j))
 							{
