@@ -19,20 +19,17 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			double[] optimalCoefficients = new double[finalTable.CountOfVariables];
 			List<int> freeIndexes = new List<int>();
 			int startCountOfCoefficients = finalTable.CountOfVariables - finalTable.BasisVariablesIndexes.Length;
+			// все небазисные (свободные) переменные равны 0
 			for (int i = 0; i < finalTable.CountOfVariables; i++)
 			{
-				if (i < startCountOfCoefficients)
-				{
-					optimalCoefficients[i] = finalTable.FreeMemebers[i];
-				}
-				else if (finalTable.BasisVariablesIndexes.Contains(i))
+				if (finalTable.BasisVariablesIndexes.Contains(i))
 				{
 					optimalCoefficients[i] = finalTable.FreeMemebers[i];
 				}
 				else
 				{
 					freeIndexes.Add(i);
-					optimalCoefficients[i] = finalTable.GoalFunctionCoefficients[i];
+					optimalCoefficients[i] = 0;
 				}
 			}
 			solution.FreeIndexes = freeIndexes.ToArray();

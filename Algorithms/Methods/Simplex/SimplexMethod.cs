@@ -46,6 +46,10 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				{
 					_table.GoalFunctionCoefficients[i] = 0;
 				}
+				else
+				{
+					_table.GoalFunctionCoefficients[i] = -1;
+				}
 			}
 			int currentFakeIndex;
 			for (int i = 0; i < _table.FakeVariablesIndexes.Length; i++)
@@ -58,21 +62,33 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				_table.GoalFunctionValue += _table.FreeMemebers[currentFakeIndex] * _table.Matrix[currentFakeIndex][currentFakeIndex];
 			}
 		}
-
+		
 		private void CheckFakeSolution()
 		{
-			if (_table.GoalFunctionValue != 0)
+			if (_table.GoalFunctionValue > double.Epsilon || _table.GoalFunctionValue < 0)
 				throw new Exception("Получить допустимое базисное решение не удалось. Дальнейшие вычисления прекращены.");
 			for (int i = 0; i < _table.FakeVariablesIndexes.Length; i++)
 			{
-				if (_table.BasisVariablesIndexes.Contains(_table.FakeVariablesIndexes[i]))
-					throw new Exception("Ложная переменная оказалась в базисе. Такое теоретически возможно. Однако, дальнейшие вычисления прекращены");
-				else if (_table.GoalFunctionCoefficients[_table.FakeVariablesIndexes[i]] > 0)
+				if (_table.GoalFunctionCoefficients[_table.FakeVariablesIndexes[i]] > double.Epsilon)
 					throw new Exception("На конечной итерации одна или несколько ложных переменных приняли положительное значение. Дальнейшие вычисления прекращены т.к задача не имеет допустимого решения.");
 			}
 		}
 
 		private void PrepareTableForSecondStep(double[] oldTargetFunctionCoefficients)
+		{
+			if (!_table.BasisVariablesIndexes.ContainsElementsFrom(_table.FakeVariablesIndexes))
+			{
+				DeleteFakeVariablesFromTheTable(oldTargetFunctionCoefficients);
+			}
+			else
+			{
+				CorrectFakeBasisVariablesOrThrowException();
+				_table.GoalFunctionCoefficients.AddAnotherToThis(oldTargetFunctionCoefficients, (first, second) => first);
+			}
+			CorrectTargetFunction();
+		}
+
+		private void DeleteFakeVariablesFromTheTable(double[] oldTargetFunctionCoefficients)
 		{
 			int matrixSize = _table.Matrix.GetLength(0) - _table.FakeVariablesIndexes.Length;
 			double[][] matrix = new double[matrixSize][];
@@ -81,8 +97,8 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			//
 			// Поскольку ложные переменные добавлялись в таблицу последними, то они находятся в ее 
 			// конце (как по строкам, так и по столбцам), поэтому их можно просто отсечь.
-			// Изменять индексы базисных переменных тоже не потребуется, поэтому можно исползовать 
-			// старый базис
+			// Изменять индексы базисных переменных тоже не потребуется (т.к. он по размеру не вырос,
+			// а ложных переменных в нем заведомо нет), поэтому можно использовать старый базис
 			//
 			for (int i = 0; i < matrixSize; i++)
 			{
@@ -101,6 +117,38 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			_table.CountOfVariables = matrixSize;
 			_table.FakeVariablesIndexes = new int[0];
 		}
+		private void CorrectFakeBasisVariablesOrThrowException()
+		{
+			int index;
+			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
+			{
+				index = _table.BasisVariablesIndexes[i];
+				if (_table.FakeVariablesIndexes.Contains(index))
+				{
+					if (_table.FreeMemebers[index] > double.Epsilon || _table.FreeMemebers[index] < 0)
+						throw new Exception("Искусственная переменная в базисе не ноль");
+					else
+						_table.FreeMemebers[index] = 0;
+				}
+			}
+		}
+		private void CorrectTargetFunction()
+		{
+			int index;
+			double coefficient;
+			_table.GoalFunctionValue = 0;
+			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
+			{
+				index = _table.BasisVariablesIndexes[i];
+				if (_table.GoalFunctionCoefficients[index] > double.Epsilon || _table.GoalFunctionCoefficients[index] < 0)
+				{
+					coefficient = _table.GoalFunctionCoefficients[index] * (-1);
+					_table.GoalFunctionCoefficients.AddAnotherToThis(_table.Matrix[index], (first, second) => first + second * coefficient);
+					_table.GoalFunctionValue += _table.FreeMemebers[index] * coefficient;
+				}
+			}
+		}
+
 		private SimplexAnswer SecondStep()
 		{
 			int leadingColumn, leadingRow;
@@ -166,7 +214,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 							else
 							{
 								freeIndexes.Add(j);
-								optimalCoefficients[j] = _table.GoalFunctionCoefficients[j];
+								optimalCoefficients[j] = 0;
 							}
 						}
 						alternativeSolution.FreeIndexes = freeIndexes.ToArray();
@@ -315,7 +363,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					for (int j = 0; j < inequalities.Count; j++)
 					{
 						if (i != j)
-							inequalities[i].Coefficients.Add(0);
+							inequalities[j].Coefficients.Add(0);
 					}
 					targetFunction.Coefficients.Add(0);
 				}
