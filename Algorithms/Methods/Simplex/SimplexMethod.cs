@@ -28,12 +28,12 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				NormalizeFakeTargetFunction();
 				MinOptimalityCriterion minOptimalityCriterion = new MinOptimalityCriterion();
 				int leadingColumn, leadingRow;
-				do
+				while (!minOptimalityCriterion.IsOptimal(_table))
 				{
 					leadingColumn = minOptimalityCriterion.GetLeadingColumn(_table);
 					leadingRow = minOptimalityCriterion.GetLeadingRow(leadingColumn, _table);
 					UpdateSimplexTable(leadingColumn, leadingRow);
-				} while (!minOptimalityCriterion.IsOptimal(_table));
+				}
 				CheckFakeSolution();
 				PrepareTableForSecondStep(oldTargetFunctionCoefficients);
 			}
@@ -65,57 +65,95 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		
 		private void CheckFakeSolution()
 		{
-			if (_table.GoalFunctionValue > double.Epsilon || _table.GoalFunctionValue < 0)
+			if (Math.Abs(_table.GoalFunctionValue) > Constants.EPS)
 				throw new Exception("Получить допустимое базисное решение не удалось. Дальнейшие вычисления прекращены.");
 			for (int i = 0; i < _table.FakeVariablesIndexes.Length; i++)
 			{
-				if (_table.GoalFunctionCoefficients[_table.FakeVariablesIndexes[i]] > double.Epsilon)
+				if (_table.GoalFunctionCoefficients[_table.FakeVariablesIndexes[i]] > Constants.EPS)
 					throw new Exception("На конечной итерации одна или несколько ложных переменных приняли положительное значение. Дальнейшие вычисления прекращены т.к задача не имеет допустимого решения.");
 			}
 		}
 
 		private void PrepareTableForSecondStep(double[] oldTargetFunctionCoefficients)
 		{
-			if (!_table.BasisVariablesIndexes.ContainsElementsFrom(_table.FakeVariablesIndexes))
-			{
-				DeleteFakeVariablesFromTheTable(oldTargetFunctionCoefficients);
-			}
-			else
-			{
-				CorrectFakeBasisVariablesOrThrowException();
-				_table.GoalFunctionCoefficients.AddAnotherToThis(oldTargetFunctionCoefficients, (first, second) => first);
-			}
+
+			DeleteNonBasisFakeVariablesFromTheTable(oldTargetFunctionCoefficients);
+
+			CorrectFakeBasisVariablesOrThrowException();
+
 			CorrectTargetFunction();
 		}
 
-		private void DeleteFakeVariablesFromTheTable(double[] oldTargetFunctionCoefficients)
+		private void DeleteNonBasisFakeVariablesFromTheTable(double[] oldTargetFunctionCoefficients)
 		{
-			int matrixSize = _table.Matrix.GetLength(0) - _table.FakeVariablesIndexes.Length;
-			double[][] matrix = new double[matrixSize][];
-			double[] freeMembers = new double[matrixSize];
-			double[] targetFunctionCoefficients = new double[matrixSize];
-			//
-			// Поскольку ложные переменные добавлялись в таблицу последними, то они находятся в ее 
-			// конце (как по строкам, так и по столбцам), поэтому их можно просто отсечь.
-			// Изменять индексы базисных переменных тоже не потребуется (т.к. он по размеру не вырос,
-			// а ложных переменных в нем заведомо нет), поэтому можно использовать старый базис
-			//
-			for (int i = 0; i < matrixSize; i++)
+			List<int> toDelete = new List<int>();
+			List<int> fakes = new List<int>();
+			for (int i = 0; i < _table.FakeVariablesIndexes.Length; i++)
 			{
-				matrix[i] = new double[matrixSize];
-				freeMembers[i] = _table.FreeMemebers[i];
-				targetFunctionCoefficients[i] = oldTargetFunctionCoefficients[i];
-				for (int j = 0; j < matrixSize; j++)
+				if (!_table.BasisVariablesIndexes.Contains(_table.FakeVariablesIndexes[i]))
 				{
-					matrix[i][j] = _table.Matrix[i][j];
+					toDelete.Add(_table.FakeVariablesIndexes[i]);
+				}
+				else
+				{
+					fakes.Add(_table.FakeVariablesIndexes[i]);
+				}
+			}
+			int size = _table.Matrix.GetLength(0) - toDelete.Count;
+			int currentRowInMatrix = 0, currentColInMatrix = 0;
+			double[][] matrix = new double[size][];
+			double[] freeMembers = new double[size];
+			double[] targetFunctionCoefficients = new double[size];
+			for (int i = 0; i < _table.Matrix.GetLength(0); i++)
+			{
+				if (!toDelete.Contains(i))
+				{
+					matrix[currentRowInMatrix] = new double[size];
+					freeMembers[currentRowInMatrix] = _table.FreeMemebers[i];					
+					currentColInMatrix = 0;
+					for (int j = 0; j < _table.Matrix.GetLength(0); j++)
+					{
+						if (!toDelete.Contains(j))
+						{
+							matrix[currentRowInMatrix][currentColInMatrix] = _table.Matrix[i][j];
+							currentColInMatrix++;
+						}
+					}
+					currentRowInMatrix++;
+				}
+				else   // если удаляется строка, то те базисные строки, у которых индекс больше автоматически переезжают на уровень выше
+				{
+					for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
+					{
+						if (_table.BasisVariablesIndexes[j] > i)
+						{
+							_table.BasisVariablesIndexes[j]--;
+						}
+					}
+					for (int j = 0; j < fakes.Count; j++)
+					{
+						if (fakes[j] > i)
+						{
+							fakes[j]--;
+						}
+					}
+				}
+			}
+			currentColInMatrix = 0;
+			for (int i = 0; i < _table.Matrix.GetLength(0); i++)
+			{
+				if (!toDelete.Contains(i))
+				{
+					targetFunctionCoefficients[currentColInMatrix] = _table.GoalFunctionCoefficients[i] + oldTargetFunctionCoefficients[i];
+					currentColInMatrix++;
 				}
 			}
 			_table.Matrix = matrix;
 			_table.FreeMemebers = freeMembers;
 			_table.GoalFunctionCoefficients = targetFunctionCoefficients;
 			_table.GoalFunctionValue = 0;
-			_table.CountOfVariables = matrixSize;
-			_table.FakeVariablesIndexes = new int[0];
+			_table.CountOfVariables = size;
+			_table.FakeVariablesIndexes = fakes.ToArray();
 		}
 		private void CorrectFakeBasisVariablesOrThrowException()
 		{
@@ -125,7 +163,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				index = _table.BasisVariablesIndexes[i];
 				if (_table.FakeVariablesIndexes.Contains(index))
 				{
-					if (_table.FreeMemebers[index] > double.Epsilon || _table.FreeMemebers[index] < 0)
+					if (Math.Abs(_table.FreeMemebers[index]) > Constants.EPS)
 						throw new Exception("Искусственная переменная в базисе не ноль");
 					else
 						_table.FreeMemebers[index] = 0;
@@ -140,7 +178,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
 			{
 				index = _table.BasisVariablesIndexes[i];
-				if (_table.GoalFunctionCoefficients[index] > double.Epsilon || _table.GoalFunctionCoefficients[index] < 0)
+				if (Math.Abs(_table.GoalFunctionCoefficients[index]) > Constants.EPS)
 				{
 					coefficient = _table.GoalFunctionCoefficients[index] * (-1);
 					_table.GoalFunctionCoefficients.AddAnotherToThis(_table.Matrix[index], (first, second) => first + second * coefficient);
@@ -152,7 +190,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		private SimplexAnswer SecondStep()
 		{
 			int leadingColumn, leadingRow;
-			do
+			while (!_optimalityCriterion.IsOptimal(_table))
 			{
 				leadingColumn = _optimalityCriterion.GetLeadingColumn(_table);
 				leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
@@ -164,7 +202,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 						Status = AnswerStatus.TargetFunctionUnlimited
 					};
 				}
-			} while (!_optimalityCriterion.IsOptimal(_table));
+			}
 			SimplexAnswer answer = new SimplexAnswer(_table, AnswerStatus.OneSolution);
 			AddCommonSolutionIfNecessary(answer);
 			return answer;
@@ -282,26 +320,8 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 
 		public static SimplexTable PrepareFirstSimplexTable(List<Inequality> inequalities, TargetFunction targetFunction)
 		{
-			int countOfAddedVariables = AddResidualAndAdditionalVariablesTo(inequalities, targetFunction);
-			List<int> basis = GetBasisIndexes(inequalities, countOfAddedVariables);
-			int[] fakeVariablesIndexes = new int[0];
-			if (countOfAddedVariables < inequalities.Count)
-			{
-				fakeVariablesIndexes = AddFakeVariables(inequalities, targetFunction);
-				basis.AddRange(fakeVariablesIndexes);
-				for (int i = 0; i < basis.Count; i++)
-				{
-					for (int j = 0; j < inequalities.Count; j++)
-					{
-						if (inequalities[j].Coefficients[basis[i]] < 0)
-						{
-							basis.RemoveAt(i);
-							i--;
-							break;
-						}
-					}
-				}
-			}
+			List<int> basisIndexes, fakeIndexes;
+			ConfigureTableWithDifferentVariables(inequalities, targetFunction, out basisIndexes, out fakeIndexes);
 			targetFunction.Coefficients.Map((element) => element *= -1);			
 			int matrixSize = targetFunction.Coefficients.Count;
 			int currentInequalityToAddAsBasis = 0;
@@ -309,7 +329,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			double[] freeMembers = new double[matrixSize];
 			for (int i = 0; i < matrixSize; i++)
 			{
-				if (basis.Contains(i))
+				if (basisIndexes.Contains(i))
 				{
 					matrix[i] = inequalities[currentInequalityToAddAsBasis].Coefficients.ToArray();
 					freeMembers[i] = inequalities[currentInequalityToAddAsBasis].RightPart;
@@ -320,64 +340,64 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					matrix[i] = new double[matrixSize];
 				}
 			}
-			SimplexTable table = new SimplexTable(matrix, freeMembers, basis.ToArray(), targetFunction.Coefficients.ToArray(), fakeVariablesIndexes);
+			SimplexTable table = new SimplexTable(matrix, freeMembers, basisIndexes.ToArray(), targetFunction.Coefficients.ToArray(), fakeIndexes.ToArray());
 			return table;
 		}
-		private static int AddResidualAndAdditionalVariablesTo(List<Inequality> inequalities, TargetFunction targetFunction)
-		{
-			int countOfAddedVariables = 0;
-			int countOfVariablesToAdd = inequalities.Count;
-			for (int i = 0; i < countOfVariablesToAdd; i++)
-			{
-				if (inequalities[i].Sign != Sign.EqualSign)
-				{
-					countOfAddedVariables++;
-					if (inequalities[i].Sign == Sign.LessThanOrEqualSign)
-					{
-						inequalities[i].Coefficients.Add(1);
-					}
-					else
-					{
-						inequalities[i].Coefficients.Add(-1);
-					}
-					for (int j = 0; j < countOfVariablesToAdd; j++)
-					{
-						if (i != j)
-							inequalities[j].Coefficients.Add(0);
-					}
-					targetFunction.Coefficients.Add(0);
-				}				
-			}
-			return countOfAddedVariables;
-		}
 		
-		private static int[] AddFakeVariables(List<Inequality> inequalities, TargetFunction targetFunction)
+
+		private static void ConfigureTableWithDifferentVariables(List<Inequality> inequalities, TargetFunction targetFunction, out List<int> basisIndexes, out List<int> fakeIndexes)
 		{
-			List<int> fakeVariablesIndexes = new List<int>();
+			basisIndexes = new List<int>();
+			fakeIndexes = new List<int>();
 			for (int i = 0; i < inequalities.Count; i++)
 			{
-				if (inequalities[i].Sign != Sign.LessThanOrEqualSign)
+				if (inequalities[i].Sign == Sign.EqualSign)
 				{
-					fakeVariablesIndexes.Add(inequalities[i].Coefficients.Count);
-					inequalities[i].Coefficients.Add(1);
+					basisIndexes.Add(inequalities[i].Coefficients.Count);
+					fakeIndexes.Add(inequalities[i].Coefficients.Count);
+					inequalities[i].Coefficients.Add(1);					
+					targetFunction.Coefficients.Add(0);
 					for (int j = 0; j < inequalities.Count; j++)
 					{
 						if (i != j)
+						{
 							inequalities[j].Coefficients.Add(0);
+						}
 					}
+				}
+				else if (inequalities[i].Sign == Sign.MoreThanOrEqualSign)
+				{
+					inequalities[i].Coefficients.Add(-1);
+					basisIndexes.Add(inequalities[i].Coefficients.Count);
+					fakeIndexes.Add(inequalities[i].Coefficients.Count);
+					inequalities[i].Coefficients.Add(1); // fake
 					targetFunction.Coefficients.Add(0);
+					targetFunction.Coefficients.Add(0);					
+					for (int j = 0; j < inequalities.Count; j++)
+					{
+						if (i != j)
+						{
+							inequalities[j].Coefficients.Add(0);
+							inequalities[j].Coefficients.Add(0);
+						}
+					}
+				}
+				else
+				{
+					basisIndexes.Add(inequalities[i].Coefficients.Count);
+					inequalities[i].Coefficients.Add(1);					
+					targetFunction.Coefficients.Add(0);
+					for (int j = 0; j < inequalities.Count; j++)
+					{
+						if (i != j)
+						{
+							inequalities[j].Coefficients.Add(0);
+						}
+					}
 				}
 			}
-			return fakeVariablesIndexes.ToArray();
 		}
-		private static List<int> GetBasisIndexes(List<Inequality> inequalities, int countOfAddedVariables)
-		{
-			List<int> basisIndexes = new List<int>();
-			for (int i = inequalities[0].Coefficients.Count - countOfAddedVariables; i < inequalities[0].Coefficients.Count; i++)
-			{
-				basisIndexes.Add(i);
-			}
-			return basisIndexes;
-		}
+		
+		
 	}
 }
