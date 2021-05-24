@@ -203,6 +203,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					};
 				}
 			}
+			_table.GoalFunctionValue += _table.FreeCoefficient;  // костыль
 			SimplexAnswer answer = new SimplexAnswer(_table, AnswerStatus.OneSolution);
 			AddCommonSolutionIfNecessary(answer);
 			return answer;
@@ -340,7 +341,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					matrix[i] = new double[matrixSize];
 				}
 			}
-			SimplexTable table = new SimplexTable(matrix, freeMembers, basisIndexes.ToArray(), targetFunction.Coefficients.ToArray(), fakeIndexes.ToArray());
+			SimplexTable table = new SimplexTable(matrix, freeMembers, basisIndexes.ToArray(), targetFunction.Coefficients.ToArray(), fakeIndexes.ToArray(), 0, targetFunction.FreeCoefficient);
 			return table;
 		}
 		

@@ -17,8 +17,9 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		public double GoalFunctionValue { get; set; }
 		public int CurrentLeadingRow { get; set; }
 		public int CountOfVariables { get; set; }
+		public double FreeCoefficient { get; set; }
 
-		public SimplexTable(double[][] variables, double[] freeMemebers, int[] basis, double[] goalFunctionCoefficients, int[] fakeVariablesIndexes, double goalFunctionValue = 0)
+		public SimplexTable(double[][] variables, double[] freeMemebers, int[] basis, double[] goalFunctionCoefficients, int[] fakeVariablesIndexes, double goalFunctionValue = 0, double freeCoef = 0)
 		{
 			Matrix = variables.CloneMatrix();
 			FreeMemebers = (double[])freeMemebers.Clone();
@@ -28,6 +29,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			CountOfVariables = FreeMemebers.Length;
 			CurrentLeadingRow = 0;
 			FakeVariablesIndexes = (int[])fakeVariablesIndexes.Clone();
+			FreeCoefficient = freeCoef;
 		}
 	}
 }
