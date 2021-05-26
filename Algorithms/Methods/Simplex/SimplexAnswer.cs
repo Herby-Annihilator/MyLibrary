@@ -18,7 +18,6 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			solution.OptimalValue = finalTable.GoalFunctionValue;
 			double[] optimalCoefficients = new double[finalTable.CountOfVariables];
 			List<int> freeIndexes = new List<int>();
-			int startCountOfCoefficients = finalTable.CountOfVariables - finalTable.BasisVariablesIndexes.Length;
 			// все небазисные (свободные) переменные равны 0
 			for (int i = 0; i < finalTable.CountOfVariables; i++)
 			{
@@ -34,6 +33,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			}
 			solution.FreeIndexes = freeIndexes.ToArray();
 			solution.OptimalCoefficients = optimalCoefficients;
+			solution.StartIndexes = finalTable.StartVariablesIndexes;
 			Solutions.Add(solution);
 		}
 		public SimplexAnswer()
@@ -56,6 +56,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		public double[] OptimalCoefficients { get; set; }
 		public int[] BasisIndexes { get; set; }
 		public int[] FreeIndexes { get; set; }
+		public int[] StartIndexes { get; set; }
 	}
 
 	public class CommonVariableValue

@@ -30,6 +30,10 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				int leadingColumn, leadingRow;
 				while (!minOptimalityCriterion.IsOptimal(_table))
 				{
+					if (minOptimalityCriterion.IsTargetFunctionUnlimited(_table))
+					{
+						throw new Exception("Расширенная функция не ограничена");
+					}
 					leadingColumn = minOptimalityCriterion.GetLeadingColumn(_table);
 					leadingRow = minOptimalityCriterion.GetLeadingRow(leadingColumn, _table);
 					UpdateSimplexTable(leadingColumn, leadingRow);
@@ -125,14 +129,14 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				{
 					for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
 					{
-						if (_table.BasisVariablesIndexes[j] > i)
+						if (_table.BasisVariablesIndexes[j] >= i)
 						{
 							_table.BasisVariablesIndexes[j]--;
 						}
 					}
 					for (int j = 0; j < fakes.Count; j++)
 					{
-						if (fakes[j] > i)
+						if (fakes[j] >= i)
 						{
 							fakes[j]--;
 						}
@@ -192,9 +196,6 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			int leadingColumn, leadingRow;
 			while (!_optimalityCriterion.IsOptimal(_table))
 			{
-				leadingColumn = _optimalityCriterion.GetLeadingColumn(_table);
-				leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
-				UpdateSimplexTable(leadingColumn, leadingRow);
 				if (_optimalityCriterion.IsTargetFunctionUnlimited(_table))
 				{
 					return new SimplexAnswer()
@@ -202,6 +203,10 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 						Status = AnswerStatus.TargetFunctionUnlimited
 					};
 				}
+				leadingColumn = _optimalityCriterion.GetLeadingColumn(_table);
+				leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
+				UpdateSimplexTable(leadingColumn, leadingRow);
+				
 			}
 			_table.GoalFunctionValue += _table.FreeCoefficient;  // костыль
 			SimplexAnswer answer = new SimplexAnswer(_table, AnswerStatus.OneSolution);
@@ -211,7 +216,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 
 		private void AddCommonSolutionIfNecessary(SimplexAnswer answer)
 		{
-			double[][] pairs = new double[_table.CountOfVariables - _table.BasisVariablesIndexes.Length][]; // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
+			double[][] pairs = new double[_table.StartVariablesIndexes.Length][]; // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
 			for (int i = 0; i < _table.CountOfVariables; i++)
 			{
 				if (!_table.BasisVariablesIndexes.Contains(i))
@@ -219,7 +224,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					if (_table.GoalFunctionCoefficients[i] == 0)
 					{
 						answer.Status = AnswerStatus.SeveralSolutions;
-						for (int j = 0; j < _table.CountOfVariables - _table.BasisVariablesIndexes.Length; j++)  // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
+						for (int j = 0; j < _table.StartVariablesIndexes.Length; j++)  // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
 						{
 							pairs[j] = new double[2];
 							if (_table.BasisVariablesIndexes.Contains(j))
@@ -227,11 +232,15 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 							else
 								pairs[j][0] = _table.GoalFunctionCoefficients[j];
 						}
+						if (_optimalityCriterion.IsTargetFunctionUnlimited(_table))
+						{
+							throw new Exception("Целева функция не ограничена");
+						}
 						int leadingColumn = _optimalityCriterion.GetLeadingColumn(_table);
 						int leadingRow = _optimalityCriterion.GetLeadingRow(leadingColumn, _table);
 						UpdateSimplexTable(leadingColumn, leadingRow);
 
-						for (int j = 0; j < _table.CountOfVariables -  _table.BasisVariablesIndexes.Length; j++)  // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
+						for (int j = 0; j < _table.StartVariablesIndexes.Length; j++)  // изначальное число переменных = общее число (вместе с добавленными) - число базисных переменных
 						{
 							if (_table.BasisVariablesIndexes.Contains(j))
 								pairs[j][1] = _table.FreeMemebers[j];
@@ -322,6 +331,11 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 		public static SimplexTable PrepareFirstSimplexTable(List<Inequality> inequalities, TargetFunction targetFunction)
 		{
 			List<int> basisIndexes, fakeIndexes;
+			int[] startVariablesIndexes = new int[inequalities[0].Coefficients.Count];
+			for (int i = 0; i < startVariablesIndexes.Length; i++)
+			{
+				startVariablesIndexes[i] = i;
+			}
 			ConfigureTableWithDifferentVariables(inequalities, targetFunction, out basisIndexes, out fakeIndexes);
 			targetFunction.Coefficients.Map((element) => element *= -1);			
 			int matrixSize = targetFunction.Coefficients.Count;
@@ -341,7 +355,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					matrix[i] = new double[matrixSize];
 				}
 			}
-			SimplexTable table = new SimplexTable(matrix, freeMembers, basisIndexes.ToArray(), targetFunction.Coefficients.ToArray(), fakeIndexes.ToArray(), 0, targetFunction.FreeCoefficient);
+			SimplexTable table = new SimplexTable(matrix, freeMembers, basisIndexes.ToArray(), targetFunction.Coefficients.ToArray(), fakeIndexes.ToArray(), startVariablesIndexes, 0, targetFunction.FreeCoefficient);
 			return table;
 		}
 		
@@ -397,8 +411,6 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					}
 				}
 			}
-		}
-		
-		
+		}		
 	}
 }
