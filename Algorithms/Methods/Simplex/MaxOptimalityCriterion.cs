@@ -14,15 +14,18 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 			double currentValue;
 			for (int i = 0; i < table.CountOfVariables; i++)
 			{
-				if (!table.BasisVariablesIndexes.Contains(i))
+				if (!table.FakeVariablesIndexes.Contains(i))
 				{
-					currentValue = table.GoalFunctionCoefficients[i];
-					if (currentValue < minValue)
+					if (!table.BasisVariablesIndexes.Contains(i))
 					{
-						minValue = currentValue;
-						leadingColumn = i;
+						currentValue = table.GoalFunctionCoefficients[i];
+						if (currentValue < minValue)
+						{
+							minValue = currentValue;
+							leadingColumn = i;
+						}
 					}
-				}	
+				}					
 			}
 			return leadingColumn;
 		}

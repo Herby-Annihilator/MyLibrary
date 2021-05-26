@@ -36,7 +36,7 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					}
 					leadingColumn = minOptimalityCriterion.GetLeadingColumn(_table);
 					leadingRow = minOptimalityCriterion.GetLeadingRow(leadingColumn, _table);
-					UpdateSimplexTable(leadingColumn, leadingRow);
+					UpdateSimplexTable(leadingColumn, leadingRow);					
 				}
 				CheckFakeSolution();
 				PrepareTableForSecondStep(oldTargetFunctionCoefficients);
@@ -76,18 +76,75 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 				if (_table.GoalFunctionCoefficients[_table.FakeVariablesIndexes[i]] > Constants.EPS)
 					throw new Exception("На конечной итерации одна или несколько ложных переменных приняли положительное значение. Дальнейшие вычисления прекращены т.к задача не имеет допустимого решения.");
 			}
+			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
+			{
+				if (_table.FakeVariablesIndexes.Contains(_table.BasisVariablesIndexes[i]))
+				{
+					if (Math.Abs(_table.FreeMemebers[_table.BasisVariablesIndexes[i]]) > Constants.EPS)
+					{
+						throw new Exception("В базисе осталась иск. переменая не равная нулю");
+					}
+					else
+					{
+						_table.FreeMemebers[_table.BasisVariablesIndexes[i]] = 0;
+					}
+				}
+			}
 		}
 
 		private void PrepareTableForSecondStep(double[] oldTargetFunctionCoefficients)
 		{
-
+			TryToExcludeFakeVariablesFromBasis();
 			DeleteNonBasisFakeVariablesFromTheTable(oldTargetFunctionCoefficients);
-
-			CorrectFakeBasisVariablesOrThrowException();
+			DeleteZeroFakeVariablesFromBasis();
+			
+			//CorrectFakeBasisVariablesOrThrowException();
 
 			CorrectTargetFunction();
 		}
 
+		private void TryToExcludeFakeVariablesFromBasis()
+		{
+			int leadingCol;
+			int leadingRow;
+			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
+			{
+				leadingCol = -1;
+				if (_table.FakeVariablesIndexes.Contains(_table.BasisVariablesIndexes[i]))
+				{
+					leadingRow = _table.BasisVariablesIndexes[i];
+					for (int j = 0; j < _table.Matrix[leadingRow].Length; j++)
+					{
+						if (Math.Abs(_table.Matrix[leadingRow][j]) > Constants.EPS && !_table.FakeVariablesIndexes.Contains(j))
+						{
+							leadingCol = j;
+							break;
+						}
+					}
+					if (leadingCol != -1)
+					{
+						UpdateSimplexTable(leadingCol, leadingRow);
+					}
+				}
+			}
+		}
+		private void DeleteZeroFakeVariablesFromBasis()
+		{
+			int indexToDelete = GetBasisFakeVariable();
+			while(indexToDelete > -1)
+			{
+				DeleteSpecifiedVariableFromTable(indexToDelete);
+			}
+		}
+		private int GetBasisFakeVariable()
+		{
+			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
+			{
+				if (_table.FakeVariablesIndexes.Contains(_table.BasisVariablesIndexes[i]))
+					return _table.BasisVariablesIndexes[i];
+			}
+			return -1;
+		}
 		private void DeleteNonBasisFakeVariablesFromTheTable(double[] oldTargetFunctionCoefficients)
 		{
 			List<int> toDelete = new List<int>();
@@ -189,6 +246,77 @@ namespace MyLibrary.Algorithms.Methods.Simplex
 					_table.GoalFunctionValue += _table.FreeMemebers[index] * coefficient;
 				}
 			}
+		}
+		
+		private void DeleteSpecifiedVariableFromTable(int varIndex)
+		{
+			List<int> fakes = new List<int>();
+			for (int i = 0; i < _table.FakeVariablesIndexes.Length; i++)
+			{
+				if (_table.FakeVariablesIndexes[i] != varIndex)
+					fakes.Add(_table.FakeVariablesIndexes[i]);
+			}
+			_table.FakeVariablesIndexes = fakes.ToArray();
+			List<int> basis = new List<int>();
+			for (int i = 0; i < _table.BasisVariablesIndexes.Length; i++)
+			{
+				if (_table.BasisVariablesIndexes[i] != varIndex)
+					basis.Add(_table.BasisVariablesIndexes[i]);
+			}
+			_table.BasisVariablesIndexes = basis.ToArray();
+			int size = _table.Matrix.GetLength(0) - 1;
+			double[][] matrix = new double[size][];
+			double[] freeMembers = new double[size];
+			double[] targetFunctionCoefs = new double[size];
+			int currentIndexInRow = 0, currentIndexInCol;
+			for (int i = 0; i < _table.Matrix.GetLength(0); i++)
+			{
+				if (i != varIndex)
+				{
+					matrix[currentIndexInRow] = new double[size];
+					currentIndexInCol = 0;
+					for (int j = 0; j < _table.Matrix[i].Length; j++)
+					{
+						if (j != varIndex)
+						{
+							matrix[currentIndexInRow][currentIndexInCol] = _table.Matrix[i][j];
+							currentIndexInCol++;
+						}
+					}
+					freeMembers[currentIndexInRow] = _table.FreeMemebers[i];
+					currentIndexInRow++;
+				}
+				else
+				{
+					for (int j = 0; j < _table.BasisVariablesIndexes.Length; j++)
+					{
+						if (_table.BasisVariablesIndexes[j] >= i)
+						{
+							_table.BasisVariablesIndexes[j]--;
+						}
+					}
+					for (int j = 0; j < _table.FakeVariablesIndexes.Length; j++)
+					{
+						if (_table.FakeVariablesIndexes[j] >= i)
+						{
+							_table.FakeVariablesIndexes[j]--;
+						}
+					}
+				}
+			}
+			currentIndexInCol = 0;
+			for (int i = 0; i < _table.GoalFunctionCoefficients.Length; i++)
+			{
+				if (i != varIndex)
+				{
+					targetFunctionCoefs[currentIndexInCol] = _table.GoalFunctionCoefficients[i];
+					currentIndexInCol++;
+				}
+			}
+			_table.Matrix = matrix;
+			_table.FreeMemebers = freeMembers;
+			_table.GoalFunctionCoefficients = targetFunctionCoefs;
+			_table.CountOfVariables = size;
 		}
 
 		private SimplexAnswer SecondStep()
